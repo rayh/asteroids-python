@@ -1,10 +1,14 @@
 from __future__ import annotations
 import math
+from pdb import pm
 import pygame
+import pymunk
+from random import random
 
 from asteroids.constants import WHITE
 
 def rotate(origin, point, angle):
+
     """
     Rotate a point counterclockwise by a given angle around a given origin.
 
@@ -47,7 +51,16 @@ class Polygon:
     def scale(self, s) -> Polygon:
         return Polygon(scale_poly(self.points, s))
 
-    def draw(self, surface, colour=WHITE):
+    def draw(self, surface, colour=WHITE, width=0):
         surf_size = surface.get_size()
         points = move_poly(self.points, (surf_size[0]/2, surf_size[1]/2))
-        pygame.draw.polygon( surface, colour, points )
+        pygame.draw.polygon( surface, colour, points, width=width)
+
+    def circle(radius, segments=10, randomize_radius_factor=0) -> Polygon:
+        points = []
+        for i in range(0, segments):
+            r = (radius * 1-randomize_radius_factor) + (random() * radius * randomize_radius_factor)
+            angle = i * 2 * math.pi / segments
+            points.append((math.cos(angle) * r, math.sin(angle) * r))
+
+        return Polygon(points)

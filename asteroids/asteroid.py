@@ -8,45 +8,42 @@ from random import randint, random
 # To find your assets
 from pathlib import Path
 
-from asteroids.physics import Particle, Vector
-
+from .physics import Particle
+from .polygon import Polygon
 from .constants import WHITE
 
 # Define the Coin sprite
 class Asteroid(Particle):
+    MAX_MASS = 1e11
     def __init__(self):
+        mass = self.MAX_MASS/10 + (random() * self.MAX_MASS/10*9)
+        self.poly = Polygon.circle(10 + 20 * mass/self.MAX_MASS, segments=15, randomize_radius_factor=1)
         """Initialize the coin sprite"""
-        super(Asteroid, self).__init__()
+        super(Asteroid, self).__init__(
+            mass=mass,
+            vertices=self.poly.points
+        )
 
-        self.mass = random() * 10e9
+        # self.body.velocity = 
+        self.body.elasticity = 0.1
+        self.body.angular_velocity = (random() * 2 * pi) - pi
+
         # The starting position is randomly generated
         width, height = pygame.display.get_window_size()
-        self.position = Vector.from_cartesian(
+        self.body.position = (
             randint(10, width - 10),
             randint(10, height - 10)
         )
-        self.velocity = Vector(a=random() * pi * 2, m=random() * 20)
-
-
-        # Get the image to draw for the coin
-        # coin_image = str(Path.cwd() / "pygame" / "images" / "coin_gold.png")
-
-        # Load the image, preserve alpha channel for transparency
-        # self.surf = pygame.image.load(coin_image).convert_alpha()
-
-        total_size = self.mass / 1e8
-        size = (total_size, total_size)
 
         # create transparent background image
-        self.surf = pygame.Surface( size, pygame.SRCALPHA, 32 )  
+        self.surf = pygame.Surface( (150,150), pygame.SRCALPHA, 32 )  
 
         self.rect = self.surf.get_rect(
-            center=self.position.to_cart()
+            center=self.body.position
         )
 
     def on_update(self, surf):
-        total_size = self.mass / 1e8
-        pygame.draw.circle(surf, WHITE, (total_size/2, total_size/2), total_size/2, 1)  # Position is the center of the circle.
+        # self.poly.rotate(self.body.angle).draw(surf, width=1)
 
         # Create the collision mask (anything not transparent)
         self.mask = pygame.mask.from_surface( surf )  

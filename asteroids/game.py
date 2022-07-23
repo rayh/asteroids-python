@@ -12,7 +12,7 @@ from typing import Tuple
 
 from .player import Player
 from .asteroid import Asteroid
-from .physics import PhysicsEngine, Vector
+from .physics import PhysicsEngine
 
 def main_loop():
     FPS = 30
@@ -48,12 +48,11 @@ def main_loop():
     # )
 
     # Create a player sprite and set its initial position
-    player = Player()
-    player.position = Vector.from_cartesian(WIDTH/2, HEIGHT/2)
+    player = Player(pos=(WIDTH/2, HEIGHT/2))
     physics.add(player)
 
     asteroids = pygame.sprite.Group()
-    for i in range(1,10):
+    for i in range(1,20):
         asteroid = Asteroid()
         asteroids.add(asteroid)
         physics.add(asteroid)
@@ -62,10 +61,7 @@ def main_loop():
     # Run until you get to an end condition
     running = True
     while running:
-        player.handle_keys()
-
-        physics.tick(time=1/FPS)
-
+        player.handle_keys(physics)
 
         # Did the user click the window close button?
         for event in pygame.event.get():
@@ -95,15 +91,17 @@ def main_loop():
         # player.update(pygame.mouse.get_pos())
 
         # Check if the player has collided with a coin, removing the coin if so
-        collisions = pygame.sprite.spritecollide(
-            sprite=player, group=asteroids, dokill=True
-        )
-        for collision in collisions:
-            # Each coin is worth 10 points
-            score += 10
-            # Play the coin collected sound
-            # coin_pickup_sound.play()
-            print("Collision!!")
+        # collisions = pygame.sprite.spritecollide(
+        #     sprite=player, group=asteroids, dokill=True
+        # )
+        # for collision in collisions:
+        #     # Each coin is worth 10 points
+        #     score += 10
+        #     # Play the coin collected sound
+        #     # coin_pickup_sound.play()
+        #     print("Collision!!")
+
+        physics.tick(time=1/FPS)
 
         # Are there too many coins on the screen?
         if len(asteroids) == 0:
@@ -112,11 +110,8 @@ def main_loop():
 
         # To render the screen, first fill the background with pink
         screen.fill((255, 170, 164))
-
         for p in physics.particles:
-            p.update()
-            p.draw_screen(screen)
-            p.draw_debug(screen)
+            p.draw_screen(screen, debug=True)
 
         # Finally, draw the score at the bottom left
         score_font = pygame.font.SysFont("any_font", 36)
