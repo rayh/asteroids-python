@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools import reduce
 from math import atan, atan2, cos, pi, sin, sqrt
 from random import random
 from typing import Tuple
@@ -77,6 +78,7 @@ class Particle(pygame.sprite.Sprite):
         self.shape = pm.Poly(self.body, vertices)
         self.shape.friction = .9
         self.body.position = position
+        self.gravity_vectors = []
         self.gravity = Vec2d(0,0)
 
         self.debug_surf = pygame.Surface( (50,50), pygame.SRCALPHA, 32 )  
@@ -107,6 +109,10 @@ class Particle(pygame.sprite.Sprite):
         self.draw_vector(self.debug_surf, self.body.velocity, (0,255,0))
         self.draw_vector(self.debug_surf, self.body.force, (255,0,0))
         self.draw_vector(self.debug_surf, self.gravity, (0,0,255))
+
+        for v in self.gravity_vectors:
+            self.draw_vector(self.debug_surf, v, (0,0,128))
+
 
     def draw_screen(self, screen, debug=False):
         screen.blit(self.surf, self.rect)
@@ -151,6 +157,7 @@ class PhysicsEngine:
         # Calculate gravity
         # F=G{\frac{m_1m_2}{r^2}}
         p.gravity = Vec2d(0,0)
+        p.gravity_vectors = []
         for p2 in self.particles:
             if p == p2:
                 continue
@@ -162,8 +169,10 @@ class PhysicsEngine:
             angle = p.body.position.get_angle_between(p2.body.position)
             # diff = p.position.subtract(p2.position)
             force = G * ((p.mass * p2.mass) / dist_sq) 
-            p.gravity = p.gravity + Vec2d(cos(angle) * force, sin(angle) * force)
+            force_v = Vec2d(cos(angle) * force, sin(angle) * force)
+            self.gravity_vectors.append(force_v)
 
+        p.gravity = reduce(lambda a, b: a + b, p.gravity_vectors, initial=Vec2d(0,0))
         p.body.apply_impulse_at_world_point(p.gravity, p.body.position)
 
     def wrap_screen_coords(self, p: Particle):
