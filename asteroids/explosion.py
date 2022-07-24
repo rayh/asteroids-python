@@ -1,35 +1,45 @@
-from cmath import pi
-import math
+from math import pi
+from random import uniform
 from typing import Tuple
 from pathlib import Path
 import pygame
 from pymunk import Vec2d
 
-from asteroids.physics import Particle
-from asteroids.polygon import Polygon, move_poly, scale_poly, rotate_poly 
+from .particle import Particle
+from .maths import vec_polar
+from asteroids.polygon import Group, Polygon, move_poly, scale_poly, rotate_poly 
 from .constants import COLLISION_TYPE_ORDANANCE, WHITE
 
 # Define the Player sprite
 class Explosion(Particle):
-    EXPLOSION_POLYGON = Polygon.circle(5, 10, randomize_radius_factor=0.5)
-
     def __init__(self, position=(0,0), extra_power=0):
         """Initialize the player sprite"""
         super(Explosion, self).__init__(
             mass=1,
-            vertices=self.EXPLOSION_POLYGON.points, 
+            vertices=Polygon.square(1).points, 
             position=position)
 
         # self.angle = -pi/2
         self.body.angle = 0
         self.body.velocity = Vec2d.zero()
         self.colour = (255,0,0)
+        self.is_physical = False
+        self.max_age = 1
 
         # create transparent background image
-        self.surf = pygame.Surface( (30,30), pygame.SRCALPHA, 32 )  
+        self.surf = pygame.Surface( (100,100), pygame.SRCALPHA, 32 )  
         self.rect = self.surf.get_rect()
 
-    def on_update(self, surf: pygame.Surface):
-        if self.age > 0.5:
+    def on_update(self, surf: pygame.Surface, time):
+        n = 9
+        for i in range(0, 9):        
+            angle = 2 * pi/n * i
+            start = vec_polar(angle, (self.age / self.max_age) * 15)
+            end = start + vec_polar(angle, (self.age / self.max_age) * 30)
+            colour =  (255,0,0, int((1-min(self.age / self.max_age, 1)) * 255))
+            shape = Polygon.line(start, end)
+            shape.draw(surf, colour, 1)
+
+        if self.age > self.max_age:
             self.dead = True
-        return super().on_update(surf)
+    #     return super().on_update(surf)

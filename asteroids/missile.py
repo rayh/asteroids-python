@@ -1,11 +1,10 @@
-from cmath import pi
-import math
+from math import pi
 from typing import Tuple
 from pathlib import Path
 import pygame
 from pymunk import Vec2d
 
-from asteroids.physics import Particle
+from .particle import Particle
 from asteroids.polygon import Polygon, move_poly, scale_poly, rotate_poly 
 from .constants import COLLISION_TYPE_ORDANANCE, WHITE
 

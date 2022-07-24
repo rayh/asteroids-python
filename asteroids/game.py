@@ -10,13 +10,15 @@ from pathlib import Path
 # For type hinting
 from typing import Tuple
 
-from pymunk import Arbiter, Vec2d
+from pymunk import Arbiter
 
 from asteroids.bullet import Bullet
+from asteroids.collisions import asteroid_hits_asteroid, bullet_hits_asteroid
 
 from .player import Player
 from .asteroid import Asteroid
-from .physics import Particle, PhysicsEngine
+from .engine import GameEngine
+from .particle import Particle
 
 def main_loop():
     FPS = 30
@@ -25,7 +27,7 @@ def main_loop():
     WIDTH = 800
     HEIGHT = 600
 
-    def handle_collision_pair(engine: PhysicsEngine, p1: Particle, p2: Particle, arbiter: Arbiter):
+    def handle_collision_pair(engine: GameEngine, p1: Particle, p2: Particle, arbiter: Arbiter):
         # impulse_v = arbiter.total_impulse * -1 * 1e12
         # p.body.apply_impulse_at_world_point(
         #     impulse_v, 
@@ -33,42 +35,19 @@ def main_loop():
         # print('Apply', self, impulse_v, 'to', p)
 
         if type(p1) == Asteroid and type(p2) == Bullet:
-            p1.spawn_smaller_asteroids(engine)
-            engine.remove(p2)
-            p2.dead = True
+            bullet_hits_asteroid(engine, p2, p1, arbiter)
             return
 
         if type(p2) == Asteroid and type(p1) == Bullet:
-            p2.spawn_smaller_asteroids(engine)
-            engine.remove(p1)
-            p1.dead = True
+            bullet_hits_asteroid(engine, p1, p2, arbiter)
             return
 
-        # if type(p1) == Asteroid and type(p2) == Asteroid:
-        #     if arbiter.total_ke > Asteroid.MIN_MASS:
-        #         print('ke', arbiter.total_ke)
-        #         p1.spawn_smaller_asteroids(engine, ke=arbiter.total_ke)
-        #         engine.remove(p1)
-
+        if type(p1) == Asteroid and type(p2) == Asteroid:
+            asteroid_hits_asteroid(engine, p1, p2, arbiter)
+            return 
    
-    physics = PhysicsEngine((WIDTH, HEIGHT)) 
-    physics.on_collision_pair = handle_collision_pair
-
-    # Initialize the Pygame engine
-    pygame.init()
-
-    # Set up the drawing window
-    screen = pygame.display.set_mode(size=[WIDTH, HEIGHT])
-
-    # Hide the mouse cursor
-    pygame.mouse.set_visible(False)
-
-    # Set up the clock for a decent frame rate
-    clock = pygame.time.Clock()
-
-    # Create a custom event for adding a new coin
-    # ADDCOIN = pygame.USEREVENT + 1
-    # pygame.time.set_timer(ADDCOIN, coin_countdown)
+    engine = GameEngine((WIDTH, HEIGHT)) 
+    engine.on_collision_pair = handle_collision_pair
 
     # Initialize the score
     score = 0
@@ -80,80 +59,38 @@ def main_loop():
 
     # Create a player sprite and set its initial position
     player = Player(pos=(WIDTH/2, HEIGHT/2))
-    physics.add(player)
+    engine.add(player)
 
     asteroids = pygame.sprite.Group()
     for i in range(0,20):
         asteroid = Asteroid.randomized()
         asteroids.add(asteroid)
-        physics.add(asteroid)
+        engine.add(asteroid)
 
 
     # Run until you get to an end condition
     running = True
     while running:
-        player.handle_keys(physics)
+        player.handle_keys(engine)
 
         # Did the user click the window close button?
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
-            # Should you add a new coin?
-            # elif event.type == ADDCOIN:
-            #     # Create a new coin and add it to the coin_list
-            #     new_coin = Asteroid()
-            #     coin_list.add(new_coin)
-
-            #     # Speed things up if fewer than three coins are on-screen
-            #     if len(coin_list) < 3:
-            #         coin_countdown -= coin_interval
-            #     # Need to have some interval
-            #     if coin_countdown < 100:
-            #         coin_countdown = 100
-
-            #     # Stop the previous timer by setting the interval to 0
-            #     pygame.time.set_timer(ADDCOIN, 0)
-
-                # Start a new timer
-                # pygame.time.set_timer(ADDCOIN, coin_countdown)
-
-        # Update the player position
-        # player.update(pygame.mouse.get_pos())
-
-        # Check if the player has collided with a coin, removing the coin if so
-        # collisions = pygame.sprite.spritecollide(
-        #     sprite=player, group=asteroids, dokill=True
-        # )
-        # for collision in collisions:
-        #     # Each coin is worth 10 points
-        #     score += 10
-        #     # Play the coin collected sound
-        #     # coin_pickup_sound.play()
-        #     print("Collision!!")
-
-        physics.tick(time=1/FPS)
-
-        # Are there too many coins on the screen?
-        if len(asteroids) == 0:
-            # This counts as an end condition, so you end your game loop
-            running = False
+        engine.tick(time=1/FPS)
 
         # To render the screen, first fill the background with pink
-        screen.fill((255, 170, 164))
-        for p in physics.particles:
-            p.draw_screen(screen, debug=False)
+        engine.screen.fill((0, 0, 40))
+        engine.render(debug=False)
 
         # Finally, draw the score at the bottom left
         score_font = pygame.font.SysFont("any_font", 36)
-        score_block = score_font.render(f"Objects: {len(physics.particles)}", False, (0, 0, 0))
-        screen.blit(score_block, (50, HEIGHT - 50))
+        score_block = score_font.render(f"Objects: {len(engine.particles)}", False, (255,255,255))
+        engine.screen.blit(score_block, (50, HEIGHT - 50))
 
         # Flip the display to make everything appear
         pygame.display.flip()
-
-        # Ensure you maintain a 30 frames per second rate
-        clock.tick(FPS)
 
     # Done! Print the final score
     print(f"Game over! Final score: {score}")

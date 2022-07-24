@@ -1,5 +1,5 @@
 from __future__ import annotations
-import math
+from math import cos, pi, sin
 from pdb import pm
 import pygame
 import pymunk
@@ -17,8 +17,8 @@ def rotate(origin, point, angle):
     ox, oy = origin
     px, py = point
 
-    qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
-    qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+    qx = ox + cos(angle) * (px - ox) - sin(angle) * (py - oy)
+    qy = oy + sin(angle) * (px - ox) + cos(angle) * (py - oy)
     return qx, qy
 
 def move(point, m):
@@ -36,7 +36,15 @@ def scale_poly(points, s):
 def move_poly(points, m):
     return [move(p, m) for p in points]
 
-    
+class Group:
+    def __init__(self, shapes = []) -> None:
+        self.shapes = shapes
+
+    def rotate(self, angle, origin=(0,0)) -> Group:
+        return Group([shape.rotate(angle, origin) for shape in self.shapes])
+
+    def draw(self, surface, colour=WHITE, width=0):
+        [shape.draw(surface, colour, width) for shape in self.shapes]
 
 class Polygon:
     def __init__(self, points) -> None:
@@ -45,7 +53,7 @@ class Polygon:
     def rotate(self, angle, origin=(0,0)) -> Polygon:
         return Polygon(rotate_poly(origin, self.points, angle))
 
-    def move(self, amount) -> Polygon:
+    def translate(self, amount) -> Polygon:
         return Polygon(move_poly(self.points, amount))
 
     def scale(self, s) -> Polygon:
@@ -60,7 +68,18 @@ class Polygon:
         points = []
         for i in range(0, segments):
             r = (radius * 1-randomize_radius_factor) + (random() * radius * randomize_radius_factor)
-            angle = i * 2 * math.pi / segments
-            points.append((math.cos(angle) * r, math.sin(angle) * r))
+            angle = i * 2 * pi / segments
+            points.append((cos(angle) * r, sin(angle) * r))
 
         return Polygon(points)
+
+    def line(a, b) -> Polygon:
+        return Polygon([a,b])
+
+    def square(size) -> Polygon:
+        return Polygon([
+            (-size/2,-size/2),
+            (size/2,-size/2),
+            (size/2,size/2),
+            (-size/2,size/2)
+            ])

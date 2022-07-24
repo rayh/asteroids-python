@@ -1,5 +1,4 @@
-from cmath import pi
-import math
+from math import pi
 from typing import List, Tuple
 from pathlib import Path
 import pygame
@@ -7,7 +6,7 @@ from pymunk import Arbiter, Vec2d
 from asteroids.asteroid import Asteroid
 from asteroids.explosion import Explosion
 
-from asteroids.physics import Particle, PhysicsEngine
+from .particle import Particle
 from asteroids.polygon import Polygon, move_poly, scale_poly, rotate_poly 
 from .constants import COLLISION_TYPE_ORDANANCE, WHITE
 
@@ -33,6 +32,7 @@ class Bullet(Particle):
         self.surf = pygame.Surface( (10,10), pygame.SRCALPHA, 32 )  
         self.rect = self.surf.get_rect()
 
-    def on_update(self, surf: pygame.Surface):
+    def on_update(self, surf: pygame.Surface, time: float):
+        super().on_update(surf, time)
         if self.age > 5:
             self.dead = True
