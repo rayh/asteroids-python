@@ -10,9 +10,13 @@ from pathlib import Path
 # For type hinting
 from typing import Tuple
 
+from pymunk import Arbiter, Vec2d
+
+from asteroids.bullet import Bullet
+
 from .player import Player
 from .asteroid import Asteroid
-from .physics import PhysicsEngine
+from .physics import Particle, PhysicsEngine
 
 def main_loop():
     FPS = 30
@@ -20,8 +24,37 @@ def main_loop():
     # Set the width and height of the output window, in pixels
     WIDTH = 800
     HEIGHT = 600
+
+    def handle_collision_pair(engine: PhysicsEngine, p1: Particle, p2: Particle, arbiter: Arbiter):
+        # impulse_v = arbiter.total_impulse * -1 * 1e12
+        # p.body.apply_impulse_at_world_point(
+        #     impulse_v, 
+        #     p.body.position)
+        # print('Apply', self, impulse_v, 'to', p)
+
+        if type(p1) == Asteroid and type(p2) == Bullet:
+            p1.spawn_smaller_asteroids(engine)
+            engine.remove(p2)
+            p2.dead = True
+            return
+
+        if type(p2) == Asteroid and type(p1) == Bullet:
+            p2.spawn_smaller_asteroids(engine)
+            engine.remove(p1)
+            p1.dead = True
+            return
+
+        if type(p1) == Asteroid and type(p2) == Asteroid:
+            if arbiter.total_ke > p1.mass * p2.mass:
+                print('ke', arbiter.total_ke)
+                p1.spawn_smaller_asteroids(engine, ke=arbiter.total_ke)
+                engine.remove(p1)
+                # engine.tick(0.1)
+                # engine.pause()
+
    
     physics = PhysicsEngine((WIDTH, HEIGHT)) 
+    physics.on_collision_pair = handle_collision_pair
 
     # Initialize the Pygame engine
     pygame.init()
@@ -52,8 +85,8 @@ def main_loop():
     physics.add(player)
 
     asteroids = pygame.sprite.Group()
-    for i in range(1,20):
-        asteroid = Asteroid()
+    for i in range(0,20):
+        asteroid = Asteroid.randomized()
         asteroids.add(asteroid)
         physics.add(asteroid)
 
@@ -104,9 +137,9 @@ def main_loop():
         physics.tick(time=1/FPS)
 
         # Are there too many coins on the screen?
-        if len(asteroids) == 0:
-            # This counts as an end condition, so you end your game loop
-            running = False
+        # if len(asteroids) == 0:
+        #     # This counts as an end condition, so you end your game loop
+        #     running = False
 
         # To render the screen, first fill the background with pink
         screen.fill((255, 170, 164))
@@ -115,7 +148,7 @@ def main_loop():
 
         # Finally, draw the score at the bottom left
         score_font = pygame.font.SysFont("any_font", 36)
-        score_block = score_font.render(f"Score: {score}", False, (0, 0, 0))
+        score_block = score_font.render(f"Objects: {len(physics.particles)}", False, (0, 0, 0))
         screen.blit(score_block, (50, HEIGHT - 50))
 
         # Flip the display to make everything appear

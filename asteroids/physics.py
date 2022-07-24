@@ -2,19 +2,26 @@ from __future__ import annotations
 from functools import reduce
 from math import atan, atan2, cos, pi, sin, sqrt
 from random import random
-from typing import Tuple
+from this import d
+from typing import List, Tuple
 
 from pygame import Rect
 import pymunk as pm
-from pymunk import Vec2d, pygame_util
+from pymunk import Arbiter, Vec2d, pygame_util
 import pygame
 
 from asteroids.polygon import move
-from asteroids.constants import WHITE
+from asteroids.constants import COLLISION_TYPE_ORDANANCE, COLLISION_TYPE_PLAYER, WHITE
 
 G = 6.67e-11 
 
 pygame_util.positive_y_is_up = False
+
+def vec_polar(angle: float, scalar: float) -> Vec2d:
+    return Vec2d(
+        cos(angle) * scalar, 
+        sin(angle) * scalar
+    )
 
 # def atan_div(opp, adj) -> float:
 #     if (opp != 0 and adj != 0):
@@ -80,8 +87,10 @@ class Particle(pygame.sprite.Sprite):
         self.body.position = position
         self.gravity_vectors = []
         self.gravity = Vec2d(0,0)
+        self.age = 0
+        self.dead = False
 
-        self.debug_surf = pygame.Surface( (50,50), pygame.SRCALPHA, 32 )  
+        self.debug_surf = pygame.Surface( (250,250), pygame.SRCALPHA, 32 )  
 
     def draw_vector(self, surf, vector: Vec2d, color, width=1):
         if vector.length == 0:
@@ -89,8 +98,8 @@ class Particle(pygame.sprite.Sprite):
 
         size = surf.get_size()
         pygame.draw.line(surf, color, 
-            move((0,0), (size[0]/2, size[1]/2)), 
-            move(vector, (size[0]/2, size[1]/2)), 
+            (size[0]/2, size[1]/2), 
+            vector + (size[0]/2, size[1]/2), 
         width)
 
     def draw_shape(self, surf):
@@ -101,31 +110,35 @@ class Particle(pygame.sprite.Sprite):
         # ps += [ps[0]]
         pygame.draw.polygon(surf, self.colour, ps, width=1)
 
-    def draw_debug(self, screen):
+    def draw_debug(self):
         empty = pygame.Color(0,0,0,0)
         self.debug_surf.fill(empty)
 
         # self.draw_vector(debug_surf, self.impulse, (255,0,0))
-        self.draw_vector(self.debug_surf, self.body.velocity, (0,255,0))
-        self.draw_vector(self.debug_surf, self.body.force, (255,0,0))
-        self.draw_vector(self.debug_surf, self.gravity, (0,0,255))
+        self.draw_vector(self.debug_surf, self.body.velocity, (0,255,0,100))
+        self.draw_vector(self.debug_surf, self.body.force, (255,0,0,100))
+        self.draw_vector(self.debug_surf, self.gravity, (0,0,255,100))
 
         for v in self.gravity_vectors:
-            self.draw_vector(self.debug_surf, v, (0,0,128))
+            self.draw_vector(self.debug_surf, v.scale_to_length(100), (0,0,128,30))
 
 
     def draw_screen(self, screen, debug=False):
         screen.blit(self.surf, self.rect)
         if debug:
-            draw_rect = Rect(0,0,50,50)
+            draw_rect = self.debug_surf.get_rect()
             draw_rect.center = self.rect.center
             screen.blit(self.debug_surf, draw_rect)
 
     def on_update(self, surf: pygame.Surface):
         pass
 
-    def update(self, debug=False):
+    def on_collision(self, engine: PhysicsEngine, arbiter: Arbiter, particles: List[Particle]):
+        pass
+
+    def update(self, time, debug=False):
         self.rect.center = self.body.position
+        self.age+=time
 
         empty = pygame.Color(0,0,0,0)
         #The last 0 indicates 0 alpha, a transparent color#Inside the game loop
@@ -136,7 +149,7 @@ class Particle(pygame.sprite.Sprite):
         self.draw_shape(self.surf)
 
         if debug:
-            self.draw_debug(self)
+            self.draw_debug()
 
         # Create the collision mask (anything not transparent)
         self.mask = pygame.mask.from_surface( self.surf )  
@@ -147,32 +160,71 @@ class PhysicsEngine:
         self.space = pm.Space()
         self.screen_size = screen_size
         self.particles = []
-        # self.default_collision_handler = self.space.add_default_collision_handler()
+        self.particle_lookup = {}
+        self.on_collision_pair = None
+        self.paused = False
+
+        def post_solve_collision(arbiter, space, data):
+            if not arbiter.is_first_contact:
+                return
+
+            if not self.on_collision_pair:
+                return
+
+            # first_point = arbiter.contact_point_set.points[0]
+            # shapes = [s for s in arbiter.shapes if s.collision_type == COLLISION_TYPE_PLAYER]
+            particles = [self.particle_lookup[s] for s in arbiter.shapes if s in self.particle_lookup]
+            for p in particles:
+                for p2 in particles:
+                    if p2 == p:
+                        continue
+
+                    self.on_collision_pair(self, p, p2, arbiter)
+
+        self.default_collision_handler = self.space.add_default_collision_handler()
+        self.default_collision_handler.post_solve = post_solve_collision
+
+    def pause(self):
+        self.paused = True
+
 
     def add(self, object):
         self.particles.append(object)
+        self.particle_lookup[object.shape] = object
         self.space.add(object.body, object.shape)
+
+    def remove(self, object):
+        if object not in self.particles:
+            return 
+            
+        self.particles.remove(object)
+        del self.particle_lookup[object.shape]
+        self.space.remove(object.body, object.shape)
 
     def calculate_gravitational_impulse(self, p):
         # Calculate gravity
         # F=G{\frac{m_1m_2}{r^2}}
-        p.gravity = Vec2d(0,0)
         p.gravity_vectors = []
-        for p2 in self.particles:
+        for p2 in self.particles[:]:
             if p == p2:
                 continue
             
-            dist_sq = p.body.position.get_dist_sqrd(p2.body.position)
-            if dist_sq == 0:
+            diff_v = p2.body.position - p.body.position
+
+            dist_sq = diff_v.get_length_sqrd()
+            if dist_sq < 2:
                 continue
 
-            angle = p.body.position.get_angle_between(p2.body.position)
-            # diff = p.position.subtract(p2.position)
-            force = G * ((p.mass * p2.mass) / dist_sq) 
-            force_v = Vec2d(cos(angle) * force, sin(angle) * force)
-            self.gravity_vectors.append(force_v)
+            angle = diff_v.angle
 
-        p.gravity = reduce(lambda a, b: a + b, p.gravity_vectors, initial=Vec2d(0,0))
+            force = G * ((p.mass * p2.mass) / dist_sq)
+            if force == 0:
+                continue
+
+            force_v = Vec2d(cos(angle) * force, sin(angle) * force)
+            p.gravity_vectors.append(force_v)
+
+        p.gravity = reduce(lambda a, b: a + b, p.gravity_vectors, Vec2d.zero())
         p.body.apply_impulse_at_world_point(p.gravity, p.body.position)
 
     def wrap_screen_coords(self, p: Particle):
@@ -200,12 +252,17 @@ class PhysicsEngine:
 
 
     def tick(self, time=1):
+        if self.paused:
+            return
 
-        for p in reversed(self.particles):
+        for p in self.particles[:]:
+            if p.dead:
+                self.remove(p)
+
             self.calculate_gravitational_impulse(p)
 
             self.wrap_screen_coords(p)
 
-            p.update(debug=True)
+            p.update(time, debug=True)
 
         self.space.step(time)

@@ -6,9 +6,9 @@ import pygame
 from pymunk import Vec2d
 from asteroids.bullet import Bullet
 
-from asteroids.physics import Particle
+from asteroids.physics import Particle, vec_polar
 from asteroids.polygon import Polygon, move_poly, scale_poly, rotate_poly 
-from .constants import WHITE
+from .constants import COLLISION_TYPE_PLAYER, WHITE
 
 # Define the Player sprite
 class Player(Particle):
@@ -26,6 +26,8 @@ class Player(Particle):
         self.body.elasticity = 0.3
         surf_size = (100,100)
         self.thrusting = False
+        self.colour = (0,255,0)
+        self.shape.collision_type = COLLISION_TYPE_PLAYER
 
         # create transparent background image
         self.surf = pygame.Surface( surf_size, pygame.SRCALPHA, 32 )  
@@ -45,12 +47,15 @@ class Player(Particle):
             self.thrusting = False
 
         if keys_pressed[pygame.K_SPACE]:
-            velocity_m = self.body.velocity.length + 100
-            velocity_v = Vec2d(math.cos(self.body.angle) * velocity_m, math.sin(self.body.angle) * velocity_m)
-            engine.add(Bullet(
-                position=self.body.position, 
+            b = Bullet(
+                position=self.body.position + vec_polar(self.body.angle, 20), 
                 angle=self.body.angle, 
-                velocity=velocity_v))
+                velocity=Vec2d(0,0))
+            engine.add(b)
+            velocity_m = self.body.velocity.length + 1e3
+            impulse_v = vec_polar(0, velocity_m)
+            self.body.apply_impulse_at_local_point(-impulse_v)
+            b.body.apply_impulse_at_local_point(impulse_v)
 
         if keys_pressed[pygame.K_LEFT]:
             self.body.angular_velocity=0
