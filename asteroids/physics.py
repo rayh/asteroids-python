@@ -115,12 +115,12 @@ class Particle(pygame.sprite.Sprite):
         self.debug_surf.fill(empty)
 
         # self.draw_vector(debug_surf, self.impulse, (255,0,0))
-        self.draw_vector(self.debug_surf, self.body.velocity, (0,255,0,100))
-        self.draw_vector(self.debug_surf, self.body.force, (255,0,0,100))
-        self.draw_vector(self.debug_surf, self.gravity, (0,0,255,100))
+        self.draw_vector(self.debug_surf, self.body.velocity, (0,255,0))
+        self.draw_vector(self.debug_surf, self.body.force, (255,0,0))
+        self.draw_vector(self.debug_surf, self.gravity, (0,0,255))
 
         for v in self.gravity_vectors:
-            self.draw_vector(self.debug_surf, v.scale_to_length(100), (0,0,128,30))
+            self.draw_vector(self.debug_surf, v.scale_to_length(100), (0,0,128,128))
 
 
     def draw_screen(self, screen, debug=False):
@@ -162,7 +162,6 @@ class PhysicsEngine:
         self.particles = []
         self.particle_lookup = {}
         self.on_collision_pair = None
-        self.paused = False
 
         def post_solve_collision(arbiter, space, data):
             if not arbiter.is_first_contact:
@@ -183,10 +182,6 @@ class PhysicsEngine:
 
         self.default_collision_handler = self.space.add_default_collision_handler()
         self.default_collision_handler.post_solve = post_solve_collision
-
-    def pause(self):
-        self.paused = True
-
 
     def add(self, object):
         self.particles.append(object)
@@ -252,8 +247,6 @@ class PhysicsEngine:
 
 
     def tick(self, time=1):
-        if self.paused:
-            return
 
         for p in self.particles[:]:
             if p.dead:

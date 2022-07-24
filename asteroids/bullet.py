@@ -34,5 +34,5 @@ class Bullet(Particle):
         self.rect = self.surf.get_rect()
 
     def on_update(self, surf: pygame.Surface):
-        if self.age > 30:
+        if self.age > 5:
             self.dead = True

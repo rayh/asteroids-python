@@ -88,7 +88,7 @@ class Asteroid(Particle):
 
             random_angle = random() * 2 * pi
             random_vector = self.body.position + vec_polar(random_angle, 10)
-            velocity_v = vec_polar(random_angle, random() * 1e2) # * ke/fragments)
+            velocity_v = vec_polar(random_angle, random() * 2e2) # * ke/fragments)
             a = Asteroid(actual_mass, velocity_v, random_vector)
             engine.add(a)
             # a.body.apply_impulse_at_world_point(impulse_v, a.body.position)

@@ -44,13 +44,11 @@ def main_loop():
             p1.dead = True
             return
 
-        if type(p1) == Asteroid and type(p2) == Asteroid:
-            if arbiter.total_ke > p1.mass * p2.mass:
-                print('ke', arbiter.total_ke)
-                p1.spawn_smaller_asteroids(engine, ke=arbiter.total_ke)
-                engine.remove(p1)
-                # engine.tick(0.1)
-                # engine.pause()
+        # if type(p1) == Asteroid and type(p2) == Asteroid:
+        #     if arbiter.total_ke > Asteroid.MIN_MASS:
+        #         print('ke', arbiter.total_ke)
+        #         p1.spawn_smaller_asteroids(engine, ke=arbiter.total_ke)
+        #         engine.remove(p1)
 
    
     physics = PhysicsEngine((WIDTH, HEIGHT)) 
@@ -137,14 +135,14 @@ def main_loop():
         physics.tick(time=1/FPS)
 
         # Are there too many coins on the screen?
-        # if len(asteroids) == 0:
-        #     # This counts as an end condition, so you end your game loop
-        #     running = False
+        if len(asteroids) == 0:
+            # This counts as an end condition, so you end your game loop
+            running = False
 
         # To render the screen, first fill the background with pink
         screen.fill((255, 170, 164))
         for p in physics.particles:
-            p.draw_screen(screen, debug=True)
+            p.draw_screen(screen, debug=False)
 
         # Finally, draw the score at the bottom left
         score_font = pygame.font.SysFont("any_font", 36)
