@@ -9,7 +9,7 @@ from random import randint, random, uniform
 # To find your assets
 from pathlib import Path
 
-from pymunk import Vec2d
+from pymunk import ShapeFilter, Vec2d
 
 from .particle import Particle
 from .explosion import Explosion
@@ -20,9 +20,9 @@ from .constants import COLLISION_TYPE_ASTEROID, WHITE
 
 # Define the Coin sprite
 class Asteroid(Particle):
-    MIN_MASS = 1e11 * 5
-    MAX_MASS = 1e13
-    MAX_SIZE = 20
+    MIN_MASS = 1e6
+    MAX_MASS = 2e7
+    MAX_SIZE = 50
     MIN_SIZE = 2
     MIN_SPEED = 20
     MAX_SPEED = 200
@@ -51,7 +51,7 @@ class Asteroid(Particle):
         size = Asteroid.size_from_mass(mass)
         self.poly = Polygon.circle(size, 
             segments=int(8 + (size/Asteroid.MAX_SIZE * 8)), 
-            randomize_radius_factor=0.9)
+            randomize_radius_factor=0.5)
 
         super(Asteroid, self).__init__(
             mass=mass,
@@ -64,6 +64,7 @@ class Asteroid(Particle):
         self.body.velocity = velocity
         self.body.angular_velocity = (random() * 2 * pi) - pi
         self.shape.collision_type = COLLISION_TYPE_ASTEROID
+        self.shape.filter = ShapeFilter(categories=COLLISION_TYPE_ASTEROID)
 
         # The starting position is randomly generated
         self.body.position = position
@@ -75,7 +76,7 @@ class Asteroid(Particle):
             center=self.body.position
         )
 
-    def hit(self, engine: GameEngine, by: Particle, ke: float):            
+    def hit(self, engine: GameEngine, by: Particle, ke: float) -> bool:            
         health_impact = sqrt(ke / self.mass)/1000
         self.health -= health_impact
         # print('health', self, self.health, "{:.2e}".format(self.mass), "{:.2e}".format(ke), "{:.2e}".format(health_impact))
@@ -84,24 +85,18 @@ class Asteroid(Particle):
         self.colour = (255, max_min_colour, max_min_colour, 255)
 
         if self.health > 0:
-            return
+            return False
 
         self.dead = True
+
         engine.add(Explosion(self.body.position))
 
         if self.mass < Asteroid.MIN_MASS:
-            return
+            return False
 
         self.spawn_smaller_asteroids(engine, ke=ke)
-
-
-    def on_update(self, surf: pygame.Surface, time: float):
-        super().on_update(surf, time)
-
-        # self.poly.rotate(self.body.angle).draw(surf, width=1)
-
-        # Create the collision mask (anything not transparent)
-        self.mask = pygame.mask.from_surface( surf )  
+ 
+        return True
 
     def spawn_smaller_asteroids(self, engine: GameEngine, ke: float = 0):
         fragments = randint(2,4)
@@ -109,11 +104,10 @@ class Asteroid(Particle):
     
         for i in range(0,fragments):
             actual_mass = even_mass/2 + (random() * even_mass/2)
-            random_angle = random() * 2 * pi
+            random_angle = random() * 2 * pi 
             random_vector = self.body.position + vec_polar(random_angle, 15)
             velocity_v = vec_polar(random_angle, random() * 2e2) # * ke/fragments)
-            a = Asteroid(actual_mass, velocity_v, random_vector)
+            a = Asteroid(actual_mass, velocity_v + self.body.velocity, random_vector)
             engine.add(a)
-            # a.body.apply_impulse_at_world_point(impulse_v, a.body.position)
 
         self.dead = True

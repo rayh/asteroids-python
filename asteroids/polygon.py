@@ -59,10 +59,12 @@ class Polygon:
     def scale(self, s) -> Polygon:
         return Polygon(scale_poly(self.points, s))
 
+    def center_in_surface(self, surf) -> Polygon:
+        surf_size = surf.get_size()
+        return Polygon(move_poly(self.points, (surf_size[0]/2, surf_size[1]/2)))
+
     def draw(self, surface, colour=WHITE, width=0):
-        surf_size = surface.get_size()
-        points = move_poly(self.points, (surf_size[0]/2, surf_size[1]/2))
-        pygame.draw.polygon( surface, colour, points, width=width)
+        pygame.draw.polygon( surface, colour, self.points, width=width)
 
     def circle(radius, segments=10, randomize_radius_factor=0) -> Polygon:
         points = []

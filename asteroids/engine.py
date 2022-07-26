@@ -7,11 +7,11 @@ from typing import List, Tuple
 
 from pygame import Rect
 import pymunk as pm
-from pymunk import Arbiter, Vec2d, pygame_util
+from pymunk import Arbiter, ShapeFilter, Vec2d, pygame_util
 import pygame
 
 from .particle import Particle
-from asteroids.constants import COLLISION_TYPE_ORDANANCE, COLLISION_TYPE_PLAYER, G, WHITE
+from asteroids.constants import COLLISION_TYPE_PLAYER, G, WHITE
 
 pygame_util.positive_y_is_up = False
 
@@ -66,12 +66,16 @@ pygame_util.positive_y_is_up = False
 
 class GameEngine:
 
-    def __init__(self, screen_size) -> None:
-        self.space = pm.Space()
-        self.screen_size = screen_size
+    def __init__(self, fps=30) -> None:
+        self.fps = fps
+
+        self.space = pm.Space(threaded=True)
+        self.space.threads = 4
+
         self.particles = []
         self.particle_lookup = {}
         self.on_collision_pair = None
+        self.elapsed_time = 0
 
         def post_solve_collision(arbiter, space, data):
             if not arbiter.is_first_contact:
@@ -96,8 +100,14 @@ class GameEngine:
         # Initialize the Pygame engine
         pygame.init()
 
+        # modes = pygame.display.list_modes()
+        mode = (1200,800)
+        print('Using ', mode)
+
         # Set up the drawing window
-        self.screen = pygame.display.set_mode(size=screen_size)
+        self.screen = pygame.display.set_mode(size=mode) #, flags=pygame.FULLSCREEN)
+        self.debug_surf = pygame.Surface(mode, pygame.SRCALPHA)
+        self.game_surf = pygame.Surface(mode, pygame.SRCALPHA)
 
         # Hide the mouse cursor
         pygame.mouse.set_visible(False)
@@ -105,9 +115,34 @@ class GameEngine:
         # Set up the clock for a decent frame rate
         self.clock = pygame.time.Clock()
 
+        self.tick_time = 1/fps
+
+    def change_rate(self, rate=1):
+        self.tick_time = rate/self.fps
+
     def render(self, debug=False):
+        empty = pygame.Color(0,0,0,0)
+
+        if debug:
+            self.debug_surf.fill(empty)
+
+        self.game_surf.fill(empty)
+
         for p in self.particles:
-            p.draw_screen(self.screen, debug=debug)
+            p.draw()
+            self.game_surf.blit(p.surf, p.rect)
+
+            if debug:
+                p.draw_debug(self.debug_surf)
+
+        draw_rect = self.game_surf.get_rect()
+        draw_rect.center = self.screen.get_rect().center
+        self.screen.blit(self.game_surf, draw_rect)
+
+        if debug:
+            draw_rect = self.debug_surf.get_rect()
+            draw_rect.center = self.screen.get_rect().center
+            self.screen.blit(self.debug_surf, draw_rect)
 
 
     def quit(self):
@@ -130,9 +165,14 @@ class GameEngine:
             
         self.particles.remove(object)
         del self.particle_lookup[object.shape]
+        object.dead = True
 
         if object.is_physical:
             self.space.remove(object.body, object.shape)
+
+    def particles_near(self, position: Vec2d, max_distance: float, mask=0x0):
+        points = self.space.point_query(position, max_distance=max_distance, shape_filter=ShapeFilter(mask=mask))
+        return [self.particle_lookup[point.shape] for point in points]
 
     def calculate_gravitational_impulse(self, p):
         # Calculate gravity
@@ -161,30 +201,23 @@ class GameEngine:
         p.body.apply_impulse_at_world_point(p.gravity, p.body.position)
 
     def wrap_screen_coords(self, p: Particle):
-        if p.body.position[1]>self.screen_size[1]:
-            p.body.position = (p.body.position[0], p.body.position[1] - self.screen_size[1])
+        size = pygame.display.get_window_size()
+
+        if p.body.position[1]>size[1]:
+            p.body.position = (p.body.position[0], p.body.position[1] - size[1])
         
         if p.body.position[1]<0:
-            p.body.position = (p.body.position[0], self.screen_size[1] - p.body.position[1])
+            p.body.position = (p.body.position[0], size[1] - p.body.position[1])
 
-        if p.body.position[0]>self.screen_size[0]:
-            p.body.position = (p.body.position[0] - self.screen_size[0], p.body.position[1])
+        if p.body.position[0]>size[0]:
+            p.body.position = (p.body.position[0] - size[0], p.body.position[1])
         
         if p.body.position[0]<0:
-            p.body.position = (self.screen_size[0] - p.body.position[0], p.body.position[1])
-
-    def calculate_collisions(self, p: Particle):
-        pass
-        # for p2 in self.particles:
-        #     if p == p2:
-        #         continue
-
-        #     collision = pygame.sprite.collide_mask(p, p2)
-        #     if collision:
-        #         diff = p.position.subtract(p2.position)
+            p.body.position = (size[0] - p.body.position[0], p.body.position[1])
 
 
-    def tick(self, time=1):
+    def tick(self):
+        time = self.tick_time
 
         for p in self.particles[:]:
             if p.dead:
@@ -194,7 +227,8 @@ class GameEngine:
 
             self.wrap_screen_coords(p)
 
-            p.tick(time, debug=True)
+            p.tick(self, time)
 
         self.space.step(time)
         self.clock.tick(1/time)
+        self.elapsed_time += time

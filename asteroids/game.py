@@ -13,7 +13,8 @@ from typing import Tuple
 from pymunk import Arbiter
 
 from asteroids.bullet import Bullet
-from asteroids.collisions import asteroid_hits_asteroid, bullet_hits_asteroid
+from asteroids.collisions import asteroid_hits_asteroid, bullet_hits_asteroid, missile_hits_asteroid
+from asteroids.missile import Missile
 
 from .player import Player
 from .asteroid import Asteroid
@@ -21,11 +22,6 @@ from .engine import GameEngine
 from .particle import Particle
 
 def main_loop():
-    FPS = 30
-
-    # Set the width and height of the output window, in pixels
-    WIDTH = 800
-    HEIGHT = 600
 
     def handle_collision_pair(engine: GameEngine, p1: Particle, p2: Particle, arbiter: Arbiter):
         # impulse_v = arbiter.total_impulse * -1 * 1e12
@@ -45,8 +41,16 @@ def main_loop():
         if type(p1) == Asteroid and type(p2) == Asteroid:
             asteroid_hits_asteroid(engine, p1, p2, arbiter)
             return 
+
+        if type(p1) == Asteroid and type(p2) == Missile:
+            missile_hits_asteroid(engine, p2, p1, arbiter)
+            return
+
+        if type(p2) == Asteroid and type(p1) == Missile:
+            missile_hits_asteroid(engine, p1, p2, arbiter)
+            return
    
-    engine = GameEngine((WIDTH, HEIGHT)) 
+    engine = GameEngine(fps=30) 
     engine.on_collision_pair = handle_collision_pair
 
     # Initialize the score
@@ -58,11 +62,12 @@ def main_loop():
     # )
 
     # Create a player sprite and set its initial position
-    player = Player(pos=(WIDTH/2, HEIGHT/2))
+    screen_size = engine.screen.get_size()
+    player = Player(pos=(screen_size[0]/2, screen_size[1]/2))
     engine.add(player)
 
     asteroids = pygame.sprite.Group()
-    for i in range(0,20):
+    for i in range(0,5):
         asteroid = Asteroid.randomized()
         asteroids.add(asteroid)
         engine.add(asteroid)
@@ -70,24 +75,46 @@ def main_loop():
 
     # Run until you get to an end condition
     running = True
+    debug = False
     while running:
         player.handle_keys(engine)
+
+        keys_pressed = pygame.key.get_pressed()
+        if keys_pressed[pygame.K_TAB]:
+            engine.change_rate(0.01)
+        else:
+            engine.change_rate(1)
+
+        if keys_pressed[pygame.K_d]:
+            debug = True
+        else:
+            debug = False
 
         # Did the user click the window close button?
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
-        engine.tick(time=1/FPS)
+        engine.tick()
 
         # To render the screen, first fill the background with pink
         engine.screen.fill((0, 0, 40))
-        engine.render(debug=False)
+
+        if engine.elapsed_time < 3:
+            # Finally, draw the score at the bottom left
+            title_font = pygame.font.SysFont("arialblack", 150)
+            alpha = int(255 * (1 - (engine.elapsed_time/3)))
+            title_block = title_font.render(f"Asteroids!", True, (255,255,255,255))
+            title_block.set_alpha(alpha)
+            title_size = title_block.get_size()
+            engine.screen.blit(title_block, (screen_size[0]/2 - title_size[0]/2 , screen_size[1]/2 - title_size[1]/2))
+
+        engine.render(debug=debug)
 
         # Finally, draw the score at the bottom left
-        score_font = pygame.font.SysFont("any_font", 36)
-        score_block = score_font.render(f"Objects: {len(engine.particles)}", False, (255,255,255))
-        engine.screen.blit(score_block, (50, HEIGHT - 50))
+        score_font = pygame.font.SysFont("arialblack", 36)
+        score_block = score_font.render(f"Objects: {len(engine.particles)}", True, (255,255,255))
+        engine.screen.blit(score_block, (50, screen_size[1] - 50))
 
         # Flip the display to make everything appear
         pygame.display.flip()

@@ -2,13 +2,14 @@ from math import pi
 from typing import List, Tuple
 from pathlib import Path
 import pygame
-from pymunk import Arbiter, Vec2d
+from pymunk import Arbiter, ShapeFilter, Vec2d
 from asteroids.asteroid import Asteroid
 from asteroids.explosion import Explosion
 
 from .particle import Particle
+from .engine import GameEngine
 from asteroids.polygon import Polygon, move_poly, scale_poly, rotate_poly 
-from .constants import COLLISION_TYPE_ORDANANCE, WHITE
+from .constants import COLLISION_TYPE_BULLET, WHITE
 
 # Define the Player sprite
 class Bullet(Particle):
@@ -25,14 +26,15 @@ class Bullet(Particle):
         self.body.angle = angle
         self.body.velocity = velocity
         self.body.elasticity = 0
-        self.shape.collision_type = COLLISION_TYPE_ORDANANCE
+        self.shape.collision_type = COLLISION_TYPE_BULLET
+        self.shape.filter = ShapeFilter(categories=COLLISION_TYPE_BULLET)
         self.colour = (255,0,0)
 
         # create transparent background image
         self.surf = pygame.Surface( (10,10), pygame.SRCALPHA, 32 )  
         self.rect = self.surf.get_rect()
 
-    def on_update(self, surf: pygame.Surface, time: float):
-        super().on_update(surf, time)
+    def on_update(self, engine: GameEngine, time: float):
+        super().on_update(engine, time)
         if self.age > 5:
             self.dead = True
