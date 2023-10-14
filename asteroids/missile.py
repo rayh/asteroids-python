@@ -4,8 +4,8 @@ from pathlib import Path
 import pygame
 from pymunk import ShapeFilter, Vec2d
 
-from .engine import GameEngine
-from .particle import Particle
+from .engine.particle import Particle
+from .engine.scene import Scene
 from asteroids.polygon import Polygon, move_poly, scale_poly, rotate_poly 
 from .constants import COLLISION_TYPE_ASTEROID, COLLISION_TYPE_BULLET, COLLISION_TYPE_MISSILE, COLLISION_TYPE_PLAYER, WHITE
 from .maths import diff_angle, vec_polar
@@ -68,13 +68,13 @@ class Missile(Particle):
         self.THRUST_POLYGON.rotate(self.body.angle).center_in_surface(surf).draw(surf, colour=(255,255,255,alpha), width=0)
 
 
-    def on_update(self, engine: GameEngine, time: float):
+    def on_update(self, scene: Scene, time: float):
         max_thrust_for_time = self.mass * 100 * time
 
         # Require target
         if not self.target or self.target.dead == True:
             self.target = None
-            particles = engine.particles_near(self.body.position, max_distance=500, mask=COLLISION_TYPE_ASTEROID)
+            particles = scene.particles_near(self.body.position, max_distance=500, mask=COLLISION_TYPE_ASTEROID)
             if len(particles) > 0:
                 sorted_by_mass = sorted(particles, key=lambda p: p.mass)
                 self.target = sorted_by_mass[-1]
@@ -107,22 +107,19 @@ class Missile(Particle):
             gimble_angle = 0
 
             # 2. Adjust desired gimble angle based on how far off the desired angle we are
-            if abs(target_angle_offset) > pi/2:
+            if abs(target_angle_offset) > pi/8:
             
                 # We're quite far off, so cancel our current velocity 
                 self.corrective_thrust_vector = self.target_vector - self.body.velocity
-
+                
                 # But to do this, we need to rotate to this ideal vector
                 gimble_angle = diff_angle(self.corrective_thrust_vector.angle, self.body.angle)
             else:
-                # Reflect through normal 
-                # normal = self.target_vector.perpendicular_normal()
-                # self.corrective_thrust_vector = self.corrective_thrust_vector - 2(self.corrective_thrust_vector.dot(normal)) * normal
                 self.corrective_thrust_vector = None
 
                 # Just rotate to the target vector
                 gimble_angle = diff_angle(self.target_vector.angle, self.body.angle)
-
+ 
             # 3. Adjust angular velocity to be proportional to the size of the desired angle from current angle
             how_far_off_factor = (gimble_angle/pi)
             self.body.angular_velocity = how_far_off_factor * 10
@@ -141,7 +138,7 @@ class Missile(Particle):
             self.thrust_vector = None
 
  
-        super().on_update(engine, time)
+        super().on_update(scene, time)
 
         if self.thrust_vector:
             self.body.apply_impulse_at_world_point(self.thrust_vector, self.body.position)

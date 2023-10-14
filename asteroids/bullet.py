@@ -6,8 +6,8 @@ from pymunk import Arbiter, ShapeFilter, Vec2d
 from asteroids.asteroid import Asteroid
 from asteroids.explosion import Explosion
 
-from .particle import Particle
-from .engine import GameEngine
+from .engine.particle import Particle
+from .engine.scene import Scene
 from asteroids.polygon import Polygon, move_poly, scale_poly, rotate_poly 
 from .constants import COLLISION_TYPE_BULLET, WHITE
 
@@ -34,7 +34,7 @@ class Bullet(Particle):
         self.surf = pygame.Surface( (10,10), pygame.SRCALPHA, 32 )  
         self.rect = self.surf.get_rect()
 
-    def on_update(self, engine: GameEngine, time: float):
-        super().on_update(engine, time)
+    def on_update(self, scene: Scene, time: float):
+        super().on_update(scene, time)
         if self.age > 5:
             self.dead = True

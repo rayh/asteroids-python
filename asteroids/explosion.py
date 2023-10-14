@@ -5,9 +5,9 @@ from pathlib import Path
 import pygame
 from pymunk import Vec2d
 
-from .particle import Particle
+from .engine.particle import Particle
+from .engine.scene import Scene
 from .maths import vec_polar
-from .engine import GameEngine
 from asteroids.polygon import Group, Polygon, move_poly, scale_poly, rotate_poly 
 from .constants import WHITE
 
@@ -49,14 +49,14 @@ class Explosion(Particle):
             colour =  (255,255,0, int((1-min(self.age / self.max_age, 1)) * 255))
             Polygon.line(start, end).center_in_surface(surf).draw(surf, colour, 1)
 
-    def on_update(self, engine: GameEngine, time):
+    def on_update(self, scene: Scene, time):
 
         if self.age > self.max_age:
             self.dead = True
             return
 
         self.explosion_vectors = []
-        for p in engine.particles_near(self.body.position, 100):
+        for p in scene.particles_near(self.body.position, 100):
             distance_v =  (p.body.position - self.body.position)
             distance_sqrd = distance_v.get_length_sqrd()
             self.explosion_vectors.append(distance_v)
@@ -69,4 +69,3 @@ class Explosion(Particle):
             p.body.apply_impulse_at_local_point(
                 vec_polar(distance_v.angle, self.force/distance_sqrd),
             )
-    #     return super().on_update(surf)
