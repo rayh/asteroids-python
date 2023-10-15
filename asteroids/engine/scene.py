@@ -55,13 +55,16 @@ class Scene:
 
     def tick(self, engine, time: float):
         for p in self.particles[:]:
+            p.on_start_tick(self, time)
+
+        for p in self.particles[:]:
             if p.dead:
                 self.remove(p)
 
             self.tick_particle(p, time)
 
             # Trigger behaviours
-            [b.on_tick(self, p) for b in self.behaviours]
+            # [b.on_tick(self, p) for b in self.behaviours]
 
         self.space.step(time)
         self.elapsed_time += time
@@ -89,7 +92,10 @@ class Scene:
             return
 
         self.particles.remove(object)
-        del self.particle_lookup[object.shape]
+
+        if object.shape in self.particle_lookup:
+            del self.particle_lookup[object.shape]
+
         object.dead = True
 
         if object.is_physical:

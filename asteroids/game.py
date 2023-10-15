@@ -13,12 +13,6 @@ from typing import Tuple
 from pymunk import Arbiter
 
 from asteroids.bullet import Bullet
-from asteroids.collisions import (
-    asteroid_hits_asteroid,
-    bullet_hits_asteroid,
-    missile_hits_asteroid,
-    thing_hits_player,
-)
 from asteroids.engine.particle import Particle
 from asteroids.missile import Missile
 from asteroids.scenes.level import LevelScene

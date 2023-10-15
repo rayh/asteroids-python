@@ -7,6 +7,7 @@ from ..engine.particle import Particle
 from ..engine.scene import Scene
 from ..asteroid import Asteroid
 from ..player import Player
+from asteroids.gravity_well import GravityWell
 from asteroids.behaviours.gravity import GravityBehaviour
 
 
@@ -54,7 +55,9 @@ class LevelScene(Scene):
         self.player = Player(pos=(screen_size[0] / 2, screen_size[1] / 2))
         self.add(self.player)
 
-        self.behaviours.append(GravityBehaviour())
+        # self.behaviours.append(GravityBehaviour())
+
+        self.add(GravityWell.randomized(screen_size))
 
         # asteroids = pygame.sprite.Group()
         for i in range(0, 5):

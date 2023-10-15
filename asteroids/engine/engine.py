@@ -64,7 +64,7 @@ pygame_util.positive_y_is_up = False
 
 
 class GameEngine:
-    def __init__(self, fps=30) -> None:
+    def __init__(self, fps=60) -> None:
         self.fps = fps
         self.elapsed_time = 0
 

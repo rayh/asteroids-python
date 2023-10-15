@@ -11,6 +11,7 @@ import pygame
 # from asteroids.engine import GameEngine
 from asteroids.polygon import move
 from asteroids.constants import WHITE
+from functools import reduce
 
 
 class Particle(pygame.sprite.Sprite):
@@ -29,14 +30,14 @@ class Particle(pygame.sprite.Sprite):
         self.shape = pm.Poly(self.body, vertices)
         self.shape.friction = 0.9
         self.body.position = position
-        self.gravity_vectors = []
-        self.gravity = Vec2d(0, 0)
+        self.force_vectors = []
         self.age = 0
         self.health = 1.0
         self.dead = False
 
         # If false, doesnt experience physics
         self.is_physical = True
+        self.is_movable = True
 
     def draw_debug_vector(
         self, surf: pygame.Surface, vector: Vec2d, color, width=1, text=None
@@ -74,11 +75,11 @@ class Particle(pygame.sprite.Sprite):
         # self.draw_vector(debug_surf, self.impulse, (255,0,0))
         self.draw_debug_vector(surf, self.body.velocity, (0, 255, 0), text="VELOCITY")
         self.draw_debug_vector(surf, self.body.force, (255, 0, 0), text="FORCE")
-        self.draw_debug_vector(surf, self.gravity, (0, 0, 255), text="GRAVITY")
+        # self.draw_debug_vector(surf, self.force, (0, 0, 255), text="GRAVITY")
 
-        for v in self.gravity_vectors:
+        for v, label in self.force_vectors:
             self.draw_debug_vector(
-                surf, v.scale_to_length(100), (0, 0, 128, 128), text="GRAV BODY"
+                surf, v.scale_to_length(100), (0, 0, 128, 128), text=label.upper()
             )
 
     def draw(self):
@@ -102,6 +103,23 @@ class Particle(pygame.sprite.Sprite):
     def on_update(self, scene, time: float):
         pass
 
+    def on_start_tick(self, scene, time: float):
+        self.force_vectors = []
+        pass
+
+    def apply_force(self, force: Vec2d, label: str):
+        if self.is_movable:
+            # print("Apply", label, force, "to", self)
+            self.force_vectors.append((force, label))
+
     def tick(self, scene, time):
         self.on_update(scene, time)
+
+        if self.force_vectors:
+            # print("Forces for", self, "have", len(self.force_vectors), "forces")
+            force = reduce(
+                lambda a, b: a + b, [f for f, _ in self.force_vectors], Vec2d.zero()
+            )
+            self.body.apply_impulse_at_world_point(force, self.body.position)
+
         self.age += time

@@ -14,9 +14,9 @@ from asteroids.explosion import Explosion
 from .missile import Missile
 from .maths import vec_polar
 from .polygon import Polygon
-from .constants import COLLISION_TYPE_PLAYER, WHITE
+from .constants import COLLISION_TYPE_FRIENDLY, WHITE
 from enum import Enum
-from asteroids.shield import Shield
+import pymunk as pm
 
 SHIP_DAMAGE_MULTIPLIER = 0.5
 
@@ -34,6 +34,7 @@ class Player(Particle):
         .rotate(-1 / 2 * pi)
         .scale(15)
     )
+    SHIELD = SHIP_POLYGON.scale(1.5)
     THRUST_POLYGON = (
         Polygon([(-0.4, 0.4), (0, 1), (0.4, 0.4), (0, -1)])
         .translate((0, -2))
@@ -52,11 +53,14 @@ class Player(Particle):
         surf_size = (100, 100)
         self.thrusting = False
         self.colour = (0, 255, 0)
-        self.shape.collision_type = COLLISION_TYPE_PLAYER
-        self.shape.filter = ShapeFilter(categories=COLLISION_TYPE_PLAYER)
+        self.shape.collision_type = COLLISION_TYPE_FRIENDLY
+        self.shape.filter = ShapeFilter(
+            mask=ShapeFilter.ALL_MASKS() ^ COLLISION_TYPE_FRIENDLY
+        )
         self.fire_rate = 0
         # self.last_bullet_side = 1
         self.health = 1
+        self.shield_activated_at = None
         self.current_weapon = Weapon.BULLET_SINGLE
 
         # create transparent background image
@@ -77,6 +81,13 @@ class Player(Particle):
         impulse_v = vec_polar(0, impulse_m)
         self.body.apply_impulse_at_local_point(-impulse_v)
         b.body.apply_impulse_at_local_point(impulse_v)
+
+    @property
+    def is_shield_active(self):
+        return (
+            self.shield_activated_at is not None
+            and self.age - self.shield_activated_at < 3
+        )
 
     def handle_keys(self, scene: Scene):
         # Handle keyboard
@@ -121,7 +132,8 @@ class Player(Particle):
                         # b.body.apply_impulse_at_local_point(impulse_v)
 
         if keys_pressed[pygame.K_LSHIFT]:
-            scene.add(Shield(player=self))
+            if not self.is_shield_active:
+                self.shield_activated_at = self.age
 
         if keys_pressed[pygame.K_LEFT]:
             self.body.angular_velocity = 0
@@ -132,6 +144,9 @@ class Player(Particle):
             self.body.angle += pi / 20
 
     def on_collision(self, scene: Scene, by: Particle, ke: float) -> bool:
+        if self.is_shield_active:
+            return False
+
         health_impact = sqrt(ke / self.mass) / 1000
         self.health -= health_impact * SHIP_DAMAGE_MULTIPLIER
 
@@ -148,6 +163,9 @@ class Player(Particle):
     def on_update(self, scene: Scene, time: float):
         self.handle_keys(scene)
 
+        if self.is_shield_active and self.age - self.shield_activated_at > 3:
+            self.shield_activated_at = None
+
         return super().on_update(scene, time)
 
     def on_draw(self, surf: pygame.Surface):
@@ -158,4 +176,8 @@ class Player(Particle):
         if self.thrusting:
             self.THRUST_POLYGON.rotate(self.body.angle).center_in_surface(surf).draw(
                 surf
+            )
+        if self.is_shield_active:
+            self.SHIELD.rotate(self.body.angle).center_in_surface(surf).draw(
+                surf, colour=(60, 60, 255), width=1
             )

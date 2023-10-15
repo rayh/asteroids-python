@@ -18,7 +18,8 @@ from .explosion import Explosion
 from .engine.engine import GameEngine
 from .maths import vec_polar
 from .polygon import Polygon
-from .constants import COLLISION_TYPE_ASTEROID, WHITE
+from .constants import COLLISION_TYPE_ENEMY, WHITE
+
 
 # Define the Coin sprite
 class Asteroid(Particle):
@@ -61,8 +62,8 @@ class Asteroid(Particle):
         self.shape.friction = 0.2
         self.body.velocity = velocity
         self.body.angular_velocity = (random() * 2 * pi) - pi
-        self.shape.collision_type = COLLISION_TYPE_ASTEROID
-        self.shape.filter = ShapeFilter(categories=COLLISION_TYPE_ASTEROID)
+        self.shape.collision_type = COLLISION_TYPE_ENEMY
+        # self.shape.filter = ShapeFilter(categories=CATEGORY)
 
         # The starting position is randomly generated
         self.body.position = position
